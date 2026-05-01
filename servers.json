@@ -1,0 +1,47 @@
+{
+  "$schema": "./schema.json",
+  "_comment": "Canonical MCP server list. ${VAR} placeholders are resolved from .env at apply time. Server names match across all three CLIs.",
+  "servers": {
+    "context7": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "sequential-thinking": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "playwright": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "serena": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/oraios/serena", "serena-mcp-server", "--context", "ide-assistant"]
+    },
+    "magic": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@21st-dev/magic@latest"],
+      "env": {
+        "API_KEY": "${TWENTYFIRST_API_KEY}"
+      }
+    },
+    "morphllm-fast-apply": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@morph-llm/morph-fast-apply"],
+      "env": {
+        "MORPH_API_KEY": "${MORPH_API_KEY}"
+      }
+    },
+    "chrome-devtools": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp"]
+    }
+  }
+}
