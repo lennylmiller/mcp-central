@@ -19,8 +19,8 @@
     },
     "serena": {
       "transport": "stdio",
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/oraios/serena", "serena-mcp-server", "--context", "ide-assistant"]
+      "command": "serena",
+      "args": ["start-mcp-server", "--context=ide-assistant", "--project-from-cwd"]
     },
     "magic": {
       "transport": "stdio",
