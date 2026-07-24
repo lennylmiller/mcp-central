@@ -139,7 +139,13 @@ def render_codex(servers: dict, env: dict) -> tuple[str, list[str]]:
 
 
 def merge_into_json(target_path: Path, key: str, value: dict) -> dict:
-    """Read target JSON file (if any), set/replace the given top-level key."""
+    """
+    Read target JSON file (if any) and merge `value` into its top-level `key`
+    map, entry by entry. Servers declared in servers.json are replaced; servers
+    that exist only in the target (e.g. CLI-specific ones like `backlog`) are
+    preserved. A server removed from servers.json must be removed from the
+    target config by hand.
+    """
     if target_path.exists():
         try:
             data = json.loads(target_path.read_text())
@@ -147,14 +153,30 @@ def merge_into_json(target_path: Path, key: str, value: dict) -> dict:
             data = {}
     else:
         data = {}
-    data[key] = value
+    existing = data.get(key)
+    if isinstance(existing, dict):
+        data[key] = {**existing, **value}
+    else:
+        data[key] = value
     return data
 
 
-def merge_codex_toml(target_path: Path, new_mcp_section: str) -> str:
+def codex_section_server_name(header: str) -> str | None:
+    """Extract NAME from a `[mcp_servers.NAME]` or `[mcp_servers.NAME.sub]`
+    section header (bare or quoted). Returns None for non-mcp sections."""
+    m = re.match(r'\[mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))', header)
+    if not m:
+        return None
+    return m.group(1) or m.group(2)
+
+
+def merge_codex_toml(target_path: Path, new_mcp_section: str, managed: set[str]) -> str:
     """
-    Replace existing [mcp_servers.*] blocks in config.toml with the new ones.
-    Preserves all other top-level sections (e.g. [projects.*], [profiles.*]).
+    Replace the [mcp_servers.NAME] blocks for servers declared in servers.json
+    with the newly rendered ones. Blocks for servers not in servers.json (e.g.
+    CLI-specific ones) and all other top-level sections ([projects.*],
+    [profiles.*], ...) are preserved. A server removed from servers.json must
+    be removed from config.toml by hand.
     """
     if not target_path.exists():
         return new_mcp_section.rstrip() + "\n"
@@ -163,11 +185,9 @@ def merge_codex_toml(target_path: Path, new_mcp_section: str) -> str:
     skip = False
     for line in existing.splitlines():
         stripped = line.strip()
-        if stripped.startswith("[mcp_servers."):
-            skip = True
-            continue
-        if skip and stripped.startswith("[") and not stripped.startswith("[mcp_servers."):
-            skip = False
+        if stripped.startswith("["):
+            name = codex_section_server_name(stripped)
+            skip = name is not None and name in managed
         if not skip:
             out_lines.append(line)
     cleaned = "\n".join(out_lines).rstrip() + "\n\n"
@@ -239,7 +259,7 @@ def main():
         merged = merge_into_json(dest, "mcpServers", rendered)
         dest.write_text(json.dumps(merged, indent=2) + "\n")
     elif target == "codex":
-        dest.write_text(merge_codex_toml(dest, rendered))
+        dest.write_text(merge_codex_toml(dest, rendered, set(servers)))
 
     print(f"wrote {dest}")
 

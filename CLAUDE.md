@@ -45,7 +45,7 @@ There are no tests or linters in this repo; verify changes with `render.py previ
 ## Important Design Decisions
 
 - **All values are inlined** — Even though only Codex requires literal values (no `${VAR}` expansion in TOML), render.py inlines secrets for all CLIs for consistency.
-- **Merge, don't clobber** — `render.py` merges the `mcpServers` key into existing Claude/Gemini JSON configs and replaces only `[mcp_servers.*]` sections in Codex TOML, preserving unrelated keys/sections.
+- **Merge, don't clobber** — `render.py` merges per server entry: servers declared in `servers.json` are replaced in the target config; servers that exist only in the target (e.g. Claude-only ones like `backlog`) are preserved, as are unrelated keys/sections. Consequence: removing a server from `servers.json` does not remove it from the CLI configs — delete it there by hand.
 - **Missing env vars are a warning, not an error** — `render.py` still writes the config, leaving literal `${VAR}` placeholders that will fail at runtime. Check stderr after applying.
 - **No absolute paths in `servers.json`** — Keeps configs portable across macOS and WSL.
 - **Env var names can be remapped per server** — e.g. the `magic` server's upstream env key is the generic `API_KEY`; `servers.json` maps the friendlier `TWENTYFIRST_API_KEY` from `.env` into it. Prefer descriptive names in `.env` and remap in the server's `env` block.
