@@ -26,18 +26,30 @@ python3 scripts/render.py codex  --in servers.json --env .env --out ~/.codex/con
 ./scripts/discover.sh
 ```
 
+There are no tests or linters in this repo; verify changes with `render.py preview <cli>` before applying.
+
+## Adding a Server
+
+1. Add the entry to `servers.json`.
+2. If it needs a secret, use a `${VAR}` placeholder in its `env` block, add `VAR=` to `.env.example`, and add the real value to `.env`.
+3. Run `./scripts/apply-all.sh`.
+4. Restart running CLI sessions — CLIs read MCP config at startup only.
+
 ## Architecture
 
 - **`servers.json`** — Canonical server list. Each entry has `transport`, `command`, `args`, and optional `env` with `${VAR}` placeholders. This is the only file to edit when adding/removing servers.
 - **`scripts/render.py`** — Core logic. Contains per-CLI render functions (`render_claude`, `render_gemini`, `render_codex`) that transform `servers.json` into each format. Handles `${VAR}` substitution, JSON merge into existing config files, and TOML section replacement for Codex. Supports `stdio`, `url`, and `http` transports.
-- **`scripts/apply-*.sh`** — Thin wrappers that back up existing config, then call `render.py` with the right paths. `apply-all.sh` runs all three sequentially.
+- **`scripts/apply-*.sh`** — Thin wrappers that back up the existing config (timestamped `.bak` next to the target), then call `render.py` with the right paths. `apply-all.sh` runs all three sequentially. Written to work on macOS, WSL, and Git Bash (they probe `py -3`/`python3`/`python` for a working interpreter).
 - **`scripts/discover.sh`** — Read-only audit of MCP servers across all CLIs and per-project `.mcp.json` files under `~/code`.
 
 ## Important Design Decisions
 
 - **All values are inlined** — Even though only Codex requires literal values (no `${VAR}` expansion in TOML), render.py inlines secrets for all CLIs for consistency.
 - **Merge, don't clobber** — `render.py` merges the `mcpServers` key into existing Claude/Gemini JSON configs and replaces only `[mcp_servers.*]` sections in Codex TOML, preserving unrelated keys/sections.
+- **Missing env vars are a warning, not an error** — `render.py` still writes the config, leaving literal `${VAR}` placeholders that will fail at runtime. Check stderr after applying.
 - **No absolute paths in `servers.json`** — Keeps configs portable across macOS and WSL.
+- **Env var names can be remapped per server** — e.g. the `magic` server's upstream env key is the generic `API_KEY`; `servers.json` maps the friendlier `TWENTYFIRST_API_KEY` from `.env` into it. Prefer descriptive names in `.env` and remap in the server's `env` block.
+- **Transport support differs by CLI** — `render_gemini` distinguishes `url` vs `http` (rendered as `httpUrl`); `render_claude` handles only `url` and `stdio`; `render_codex` treats `url`/`http` the same and supports optional `bearer_token_env_var` for HTTP servers.
 - **This repo only manages cross-CLI servers** — CLI-specific or project-local servers belong in their respective configs (e.g., `~/.claude.json` directly, or a project's `.mcp.json`).
 
 ## Requirements
